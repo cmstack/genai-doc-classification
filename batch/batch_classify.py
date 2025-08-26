@@ -86,6 +86,10 @@ def classify_single_document(args_dict: dict) -> dict:
             full_model_name = map_model_name(args_dict['model'])
             cmd.extend(['--model', full_model_name])
         
+        # Add region if specified
+        if args_dict.get('region'):
+            cmd.extend(['--region', args_dict['region']])
+        
         # Add verbose flag if requested
         if args_dict.get('verbose'):
             cmd.append('--verbose')
@@ -446,6 +450,7 @@ Examples:
     # Processing options
     parser.add_argument('--model', choices=['nova-lite', 'claude-sonnet', 'claude-haiku'], 
                        default='claude-sonnet', help='AI model for classification')
+    parser.add_argument('--region', help='AWS region to use (overrides environment variables)')
     parser.add_argument('--workers', type=int, default=4, help='Number of parallel workers')
     parser.add_argument('--timeout', type=int, default=300, help='Timeout per document (seconds)')
     parser.add_argument('--max-docs', type=int, help='Maximum number of documents to process')
@@ -489,6 +494,7 @@ Examples:
         doc_args = {
             **doc,
             'model': args.model,
+            'region': args.region,
             'verbose': args.verbose,
             'timeout': args.timeout
         }

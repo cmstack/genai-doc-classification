@@ -19,6 +19,7 @@ NC='\033[0m' # No Color
 # Default values
 WORKERS=4
 MODEL="claude-sonnet"
+REGION=""
 OUTPUT_DIR="batch_results"
 TIMEOUT=300
 VERBOSE=false
@@ -38,6 +39,7 @@ SOURCE OPTIONS:
 PROCESSING OPTIONS:
     --workers NUM        Number of parallel workers (default: $WORKERS)
     --model MODEL        AI model to use (default: $MODEL)
+    --region REGION      AWS region to use (overrides environment variables)
     --timeout SECONDS    Timeout per document (default: $TIMEOUT)
     --max-docs NUM       Maximum number of documents to process
     --verbose           Enable verbose output
@@ -51,14 +53,14 @@ EXAMPLES:
     # Process S3 bucket with 8 workers
     $0 --s3-bucket my-docs-bucket --prefix documents/ --workers 8
 
-    # Process local directory of PDFs
-    $0 --local-dir /path/to/docs --pattern "*.pdf" --model claude-haiku
+    # Process local directory of PDFs with specific region
+    $0 --local-dir /path/to/docs --pattern "*.pdf" --model claude-haiku --region us-west-2
 
     # Process from file list with verbose output
     $0 --file-list document_list.txt --verbose --output results/
 
-    # Quick test with limited documents
-    $0 --s3-bucket test-bucket --max-docs 10 --workers 2
+    # Quick test with limited documents in custom region
+    $0 --s3-bucket test-bucket --max-docs 10 --workers 2 --region eu-west-1
 
 EOF
 }
@@ -92,6 +94,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --model)
             MODEL="$2"
+            shift 2
+            ;;
+        --region)
+            REGION="$2"
             shift 2
             ;;
         --timeout)
@@ -162,6 +168,10 @@ fi
 
 # Add processing options
 PYTHON_CMD="$PYTHON_CMD --workers $WORKERS --model $MODEL --timeout $TIMEOUT"
+
+if [ -n "$REGION" ]; then
+    PYTHON_CMD="$PYTHON_CMD --region $REGION"
+fi
 
 if [ -n "$MAX_DOCS" ]; then
     PYTHON_CMD="$PYTHON_CMD --max-docs $MAX_DOCS"

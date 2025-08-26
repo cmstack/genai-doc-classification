@@ -95,7 +95,7 @@ def example_3_classify_s3_document():
     s3_config = S3Config(
         input_bucket="my-docs-bucket",
         output_bucket="my-results-bucket",
-        region="us-east-1"
+        region=os.environ.get("AWS_REGION", "us-east-1")
     )
     config = ClassificationConfig(s3=s3_config)
     classifier = DocumentClassifier(config)
@@ -246,13 +246,13 @@ def example_6_configuration_from_file():
         "s3": {
             "input_bucket": "prod-documents-input",
             "output_bucket": "prod-classification-output",
-            "region": "us-east-1",
+            "region": os.environ.get("AWS_REGION", "us-east-1"),
             "prefix": "documents/",
             "results_prefix": "results/"
         },
         "bedrock": {
             "model_id": "anthropic.claude-3-sonnet-20240229-v1:0",
-            "region": "us-east-1"
+            "region": os.environ.get("AWS_REGION", "us-east-1")
         },
         "supported_document_types": [
             "invoice", "contract", "resume", "bank_statement"

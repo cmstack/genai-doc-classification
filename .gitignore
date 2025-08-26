@@ -1,0 +1,17 @@
+# python project
+*.py[cod]
+__pycache__/
+*.pyo
+*.pyd
+*.pyc
+**/*.pyc
+./**/*.pyc
+
+# C extensions
+*.so
+
+# Python virtual environments
+env/
+.venv/
+venv/
+

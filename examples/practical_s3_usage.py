@@ -174,7 +174,7 @@ def main():
     s3_config = S3Config(
         input_bucket="my-documents-input",
         output_bucket="my-classification-results",
-        region="us-east-1",
+        region=os.environ.get("AWS_REGION", "us-east-1"),
         prefix="documents/",
         results_prefix="processed/"
     )

@@ -5,7 +5,15 @@ A production-ready document classification system with **17 AI models** on AWS B
 ## 🚀 Quick Start
 
 ```bash
-# Install dependencies
+# Insta## 🔄 Process Flow Diagram
+
+The following sequence diagrams show the complete document classification process:
+
+> **💡 Note**: These Mermaid diagrams will render automatically on GitHub, GitLab, and other platforms that support Mermaid. For local viewing, use a Markdown viewer with Mermaid support or the [Mermaid Live Editor](https://mermaid.live/).
+
+### Single Document Classification
+
+```mermaidpendencies
 uv sync
 
 # Classify text with default model
@@ -76,8 +84,8 @@ uv run python classify_doc.py --local data/invoice.pdf
 # S3 document  
 uv run python classify_doc.py --s3 my-bucket documents/invoice.pdf
 
-# With specific model and verbose output
-uv run python classify_doc.py --local data/contract.pdf --model claude-3-sonnet --verbose
+# With specific model, region, and verbose output
+uv run python classify_doc.py --local data/contract.pdf --model claude-3-sonnet --region us-west-2 --verbose
 ```
 
 ### Batch Processing
@@ -92,8 +100,8 @@ cd batch/
 # Process S3 bucket
 ./batch_classify.sh --s3-bucket my-docs --prefix documents/ --workers 8
 
-# Fast processing with nova-lite
-./batch_classify.sh --local-dir ../data --model nova-lite --workers 6
+# Fast processing with nova-lite in custom region
+./batch_classify.sh --local-dir ../data --model nova-lite --region us-west-2 --workers 6
 
 # Advanced Python processor with all options
 python batch_classify.py \
@@ -102,6 +110,7 @@ python batch_classify.py \
   --pattern "*.pdf" \
   --workers 12 \
   --model claude-sonnet \
+  --region eu-central-1 \
   --timeout 300 \
   --max-docs 100 \
   --output results \
@@ -119,8 +128,14 @@ aws configure
 
 # Or use environment variables
 export AWS_PROFILE=your-profile
-export AWS_REGION=us-east-1
+export AWS_REGION=us-west-2  # Set your preferred region
 ```
+
+**Region Configuration**: The system now automatically detects your AWS region from:
+1. `AWS_REGION` environment variable
+2. `AWS_DEFAULT_REGION` environment variable  
+3. AWS configuration file
+4. Fallback to `us-east-1` if none are set
 
 ### Model Selection Guide
 
@@ -138,7 +153,7 @@ export AWS_REGION=us-east-1
 S3Config(
     input_bucket="my-documents",
     output_bucket="my-results", 
-    region="us-east-1",
+    region="us-west-2",  # Optional - will auto-detect if not specified
     prefix="documents/",
     results_prefix="classifications/"
 )
@@ -236,7 +251,181 @@ The system integrates with the broader AWS Intelligent Document Processing (IDP)
 - **AWS Lambda** - Serverless processing (when deployed)
 - **Amazon DynamoDB** - Metadata and results storage
 
-## 🚦 API Limits & Costs
+## � Process Flow Diagram
+
+The following sequence diagram shows the complete document classification process:
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant CLI as classify_doc.py
+    participant Config as Configuration
+    participant Classifier as DocumentClassifier
+    participant S3 as Amazon S3
+    participant Textract as Amazon Textract
+    participant Bedrock as AWS Bedrock
+    participant Results as Output
+
+    Note over User, Results: Document Classification Flow
+
+    User->>CLI: Start classification
+    Note right of User: Options: --text, --local, --s3<br/>--region, --model, etc.
+    
+    CLI->>Config: Load configuration
+    Config-->>CLI: ClassificationConfig
+    Note right of Config: Sources:<br/>1. CLI flags (--region)<br/>2. Environment vars<br/>3. Config files<br/>4. Defaults
+    
+    CLI->>Classifier: Initialize with config
+    Classifier->>Classifier: Setup AWS clients
+    Note right of Classifier: Bedrock, S3, Textract<br/>clients with specified region
+    
+    alt Document from S3
+        CLI->>S3: Get document
+        S3-->>CLI: Document content
+    else Local file
+        CLI->>CLI: Read local file
+        Note right of CLI: PDF, image, or text file
+    end
+    
+    CLI->>Classifier: classify_document(request)
+    
+    alt Document needs OCR
+        Classifier->>S3: Upload to S3 (if local)
+        S3-->>Classifier: S3 URI
+        Classifier->>Textract: Analyze document
+        Note right of Textract: Extract text from<br/>images/PDFs
+        Textract-->>Classifier: Extracted text
+    else Text document
+        Note right of Classifier: Direct text processing
+    end
+    
+    Classifier->>Bedrock: Send to AI model
+    Note right of Bedrock: Models: Nova, Claude, Llama<br/>Prompt: Classify + reasoning
+    Bedrock-->>Classifier: Classification result
+    Note left of Bedrock: {<br/>  "type": "invoice",<br/>  "confidence": 0.95,<br/>  "reasoning": "..."<br/>}
+    
+    Classifier->>Classifier: Process confidence scores
+    Note right of Classifier: Calculate thresholds<br/>Determine review needs
+    
+    Classifier-->>CLI: ClassificationResult
+    
+    CLI->>Results: Format output
+    alt JSON output
+        Results->>User: JSON response
+    else Standard output
+        Results->>User: Formatted text
+    end
+    
+    opt Save to file
+        CLI->>Results: Save to --output file
+        Results-->>CLI: File saved
+    end
+
+    Note over User, Results: Complete! Document classified with confidence score
+```
+
+### Key Process Steps
+
+1. **Initialization**: CLI loads configuration from multiple sources (flags > env vars > files > defaults)
+2. **AWS Setup**: Initialize clients for Bedrock, S3, and Textract with specified region
+3. **Document Retrieval**: Fetch from S3, read local file, or use direct text input
+4. **Text Extraction**: Use Textract for OCR if document is image/PDF format
+5. **AI Classification**: Send extracted text to chosen Bedrock model for classification
+6. **Result Processing**: Calculate confidence scores and determine if human review is needed
+7. **Output**: Return structured results in JSON or formatted text
+
+### Batch Processing Flow
+
+For high-volume document processing, the system supports parallel batch operations:
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant BatchCLI as batch_classify.py
+    participant Discovery as Document Discovery
+    participant Workers as Parallel Workers
+    participant CLI as classify_doc.py
+    participant AWS as AWS Services
+    participant Results as Batch Results
+
+    Note over User, Results: Batch Document Classification Flow
+
+    User->>BatchCLI: Start batch processing
+    Note right of User: --s3-bucket, --local-dir<br/>--workers N, --region, --model
+
+    BatchCLI->>Discovery: Discover documents
+    
+    alt S3 source
+        Discovery->>AWS: List S3 objects
+        AWS-->>Discovery: Document list
+    else Local directory
+        Discovery->>Discovery: Scan filesystem
+        Discovery-->>Discovery: File list
+    else File list
+        Discovery->>Discovery: Read file list
+        Discovery-->>Discovery: Document list
+    end
+    
+    Discovery-->>BatchCLI: Documents array
+
+    BatchCLI->>Workers: Create worker pool (N workers)
+    
+    par Worker 1
+        Workers->>CLI: classify_document(doc1)
+        CLI->>AWS: Process document 1
+        AWS-->>CLI: Result 1
+        CLI-->>Workers: Classification result 1
+    and Worker 2
+        Workers->>CLI: classify_document(doc2)  
+        CLI->>AWS: Process document 2
+        AWS-->>CLI: Result 2
+        CLI-->>Workers: Classification result 2
+    and Worker N
+        Workers->>CLI: classify_document(docN)
+        CLI->>AWS: Process document N
+        AWS-->>CLI: Result N
+        CLI-->>Workers: Classification result N
+    end
+
+    Workers-->>BatchCLI: All results collected
+    
+    BatchCLI->>Results: Aggregate results
+    Results->>Results: Generate statistics
+    
+    opt JSON output
+        Results->>Results: Save JSON file
+    end
+    
+    opt CSV output
+        Results->>Results: Save CSV file
+    end
+    
+    Results-->>User: Processing complete
+    Note left of Results: Summary:<br/>- Total processed<br/>- Success rate<br/>- Document type distribution<br/>- Confidence statistics
+```
+
+### Understanding the Flow
+
+**Single Document Flow**:
+- Documents can come from three sources: direct text, local files, or S3
+- OCR (Textract) is only used for image/PDF files that need text extraction
+- All requests go through the same Bedrock AI model for classification
+- Results include confidence scores and reasoning for transparency
+
+**Batch Processing Flow**:
+- Supports parallel processing with configurable worker count
+- Each worker runs independent classification processes
+- Results are aggregated and provide comprehensive statistics
+- Optimized for high-volume document processing (100s-1000s of documents)
+
+**Key Design Principles**:
+- **Flexibility**: Multiple input sources and output formats
+- **Scalability**: Parallel processing and configurable workers
+- **Reliability**: Timeout handling and error recovery
+- **Transparency**: Detailed logging and confidence scoring
+- **Region-Aware**: Full AWS region customization support
+
+## �🚦 API Limits & Costs
 
 | Model | Requests/min | Tokens/min | Relative Cost |
 |-------|--------------|------------|---------------|

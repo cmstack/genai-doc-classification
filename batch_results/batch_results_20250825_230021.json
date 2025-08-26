@@ -1,0 +1,11 @@
+[
+  {
+    "document_id": "test text: Invoice #999 Total: $50",
+    "source": "test text: Invoice #999 Total: $50.00",
+    "status": "error",
+    "error": "\u274c Error: File not found: test text: Invoice #999 Total: $50.00\n",
+    "processing_time_ms": 265.7017707824707,
+    "cli_exit_code": 2,
+    "timestamp": "2025-08-26T04:00:21.319263+00:00"
+  }
+]

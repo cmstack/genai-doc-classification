@@ -24,14 +24,23 @@ from genai_doc_classification import (
 from genai_doc_classification.config import AVAILABLE_MODELS
 
 
-def classify_s3_document(bucket: str, key: str, model_name: str = "claude-sonnet", verbose: bool = False) -> dict:
+def classify_s3_document(bucket: str, key: str, model_name: str = "claude-sonnet", verbose: bool = False, region: str = None) -> dict:
     """Classify a document in S3."""
     if verbose:
         print(f"🔍 Classifying S3 document: s3://{bucket}/{key}")
         if model_name in AVAILABLE_MODELS:
             print(f"🤖 Using model: {AVAILABLE_MODELS[model_name]['name']}")
+        if region:
+            print(f"🌍 Using region: {region}")
     
     config = ClassificationConfig.from_env()
+    
+    # Override region if specified
+    if region:
+        config.bedrock.region = region
+        config.textract.region = region
+        config.s3.region = region
+    
     config.bedrock.set_model(model_name)
     classifier = DocumentClassifier(config)
     
@@ -85,15 +94,24 @@ def classify_s3_document(bucket: str, key: str, model_name: str = "claude-sonnet
     return result_data
 
 
-def classify_text_directly(text: str, doc_id: str = "text-input", model_name: str = "claude-sonnet", verbose: bool = False) -> dict:
+def classify_text_directly(text: str, doc_id: str = "text-input", model_name: str = "claude-sonnet", verbose: bool = False, region: str = None) -> dict:
     """Classify text directly without S3."""
     if verbose:
         print(f"🔍 Classifying text input (ID: {doc_id})")
         print(f"📝 Text length: {len(text)} characters")
         if model_name in AVAILABLE_MODELS:
             print(f"🤖 Using model: {AVAILABLE_MODELS[model_name]['name']}")
+        if region:
+            print(f"🌍 Using region: {region}")
     
     config = ClassificationConfig.from_env()
+    
+    # Override region if specified
+    if region:
+        config.bedrock.region = region
+        config.textract.region = region
+        config.s3.region = region
+    
     config.bedrock.set_model(model_name)
     classifier = DocumentClassifier(config)
     
@@ -133,7 +151,7 @@ def classify_text_directly(text: str, doc_id: str = "text-input", model_name: st
     return result_data
 
 
-def classify_local_file(file_path: str, model_name: str = "claude-sonnet", verbose: bool = False, ocr_preference: str = "auto") -> dict:
+def classify_local_file(file_path: str, model_name: str = "claude-sonnet", verbose: bool = False, ocr_preference: str = "auto", region: str = None) -> dict:
     """Classify a local file by extracting text."""
     if verbose:
         print(f"🔍 Classifying local file: {file_path}")
@@ -143,7 +161,7 @@ def classify_local_file(file_path: str, model_name: str = "claude-sonnet", verbo
     
     # Classify the extracted text
     doc_id = Path(file_path).stem
-    return classify_text_directly(text, doc_id, model_name, verbose)
+    return classify_text_directly(text, doc_id, model_name, verbose, region)
 
 
 def extract_text_from_file(file_path: str, verbose: bool = False, ocr_preference: str = "auto") -> str:
@@ -330,26 +348,29 @@ Examples:
   # Classify document in S3 with default Claude Sonnet
   python classify_doc.py --s3 my-bucket documents/invoice.pdf
   
-  # Use Nova Lite for faster processing
-  python classify_doc.py --s3 my-bucket doc.pdf --model nova-lite
+  # Use Nova Lite for faster processing in us-west-2
+  python classify_doc.py --s3 my-bucket doc.pdf --model nova-lite --region us-west-2
   
   # Classify text directly with Claude Haiku
   python classify_doc.py --text "Invoice #12345" --model claude-haiku
   
+  # Use specific region for all AWS services
+  python classify_doc.py --local scan.pdf --region eu-west-1
+  
   # List available models
   python classify_doc.py --list-models
   
-  # Classify local file with specific model
-  python classify_doc.py --local /path/to/document.pdf --model claude-sonnet
+  # Classify local file with specific model and region
+  python classify_doc.py --local /path/to/document.pdf --model claude-sonnet --region ap-southeast-1
   
-  # Force AWS Textract for image OCR
-  python classify_doc.py --local scan.jpg --textract
+  # Force AWS Textract for image OCR with custom region
+  python classify_doc.py --local scan.jpg --textract --region us-east-1
   
-  # Force local OCR (offline)
+  # Force local OCR (offline, region not needed)
   python classify_doc.py --local scan.tiff --local-ocr
   
-  # Get JSON output
-  python classify_doc.py --s3 my-bucket doc.pdf --json
+  # Get JSON output with custom region
+  python classify_doc.py --s3 my-bucket doc.pdf --json --region ca-central-1
         """
     )
     
@@ -396,6 +417,10 @@ Examples:
         '--local-ocr', 
         action='store_true',
         help='Force use of local OCR instead of AWS Textract for images'
+    )
+    parser.add_argument(
+        '--region', '-r',
+        help='AWS region to use (overrides environment variables and config files)'
     )
     
     # Model selection options
@@ -445,11 +470,11 @@ Examples:
         # Classify based on input type
         if args.s3:
             bucket, key = args.s3
-            result = classify_s3_document(bucket, key, args.model, args.verbose)
+            result = classify_s3_document(bucket, key, args.model, args.verbose, args.region)
         elif args.text:
-            result = classify_text_directly(args.text, model_name=args.model, verbose=args.verbose)
+            result = classify_text_directly(args.text, model_name=args.model, verbose=args.verbose, region=args.region)
         elif args.local:
-            result = classify_local_file(args.local, args.model, args.verbose, ocr_preference)
+            result = classify_local_file(args.local, args.model, args.verbose, ocr_preference, args.region)
         
         # Output results
         if args.json:

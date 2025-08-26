@@ -18,6 +18,32 @@ from typing import Any
 import boto3
 
 
+def get_default_aws_region() -> str:
+    """
+    Get the default AWS region from various sources in order of preference:
+    1. AWS_REGION environment variable
+    2. AWS_DEFAULT_REGION environment variable
+    3. AWS config file
+    4. Fallback to us-east-1
+    """
+    # Check environment variables first
+    region = os.environ.get("AWS_REGION") or os.environ.get("AWS_DEFAULT_REGION")
+    if region:
+        return region
+
+    # Try to get from boto3 session
+    try:
+        session = boto3.Session()
+        region = session.region_name
+        if region:
+            return region
+    except Exception:
+        pass
+
+    # Final fallback
+    return "us-east-1"
+
+
 # Available Bedrock models for document classification
 AVAILABLE_MODELS = {
     "nova-lite": {
@@ -152,7 +178,7 @@ class BedrockConfig:
     """Configuration for AWS Bedrock integration."""
 
     model_id: str = "anthropic.claude-3-sonnet-20240229-v1:0"  # Default to Claude Sonnet
-    region: str = "us-east-1"
+    region: str = field(default_factory=get_default_aws_region)
     max_tokens: int = 2048
     temperature: float = 0.1
     top_p: float = 0.9
@@ -189,7 +215,7 @@ class BedrockConfig:
 class TextractConfig:
     """Configuration for AWS Textract integration."""
 
-    region: str = "us-east-1"
+    region: str = field(default_factory=get_default_aws_region)
     feature_types: list[str] = field(default_factory=lambda: ["TABLES", "FORMS"])
     queries: list[str] = field(default_factory=list)
     adapters: list[dict[str, Any]] = field(default_factory=list)
@@ -201,16 +227,18 @@ class S3Config:
 
     input_bucket: str | None = None
     output_bucket: str | None = None
-    region: str = "us-east-1"
+    region: str = field(default_factory=get_default_aws_region)
     prefix: str = "documents/"
     results_prefix: str = "classification-results/"
 
     def __post_init__(self) -> None:
         """Set default bucket names from environment if not provided."""
         if not self.input_bucket:
-            self.input_bucket = os.environ.get("INPUT_BUCKET")
+            default_region = get_default_aws_region()
+            self.input_bucket = f"mras-document-classification-input-{default_region}"
         if not self.output_bucket:
-            self.output_bucket = os.environ.get("OUTPUT_BUCKET")
+            default_region = get_default_aws_region()
+            self.output_bucket = f"mras-document-classification-output-{default_region}"
 
 
 @dataclass
@@ -277,25 +305,27 @@ class ClassificationConfig:
     @classmethod
     def from_env(cls) -> ClassificationConfig:
         """Create configuration from environment variables."""
+        default_region = get_default_aws_region()
+        
         bedrock_config = BedrockConfig(
             model_id=os.environ.get("BEDROCK_MODEL_ID", "us.amazon.nova-lite-v1:0"),
-            region=os.environ.get("AWS_REGION", "us-east-1"),
+            region=os.environ.get("AWS_REGION", default_region),
             max_tokens=int(os.environ.get("BEDROCK_MAX_TOKENS", "2048")),
             temperature=float(os.environ.get("BEDROCK_TEMPERATURE", "0.1")),
             top_p=float(os.environ.get("BEDROCK_TOP_P", "0.9")),
         )
 
         textract_config = TextractConfig(
-            region=os.environ.get("AWS_REGION", "us-east-1"),
+            region=os.environ.get("AWS_REGION", default_region),
             feature_types=os.environ.get(
                 "TEXTRACT_FEATURES", "TABLES,FORMS"
             ).split(","),
         )
 
         s3_config = S3Config(
-            input_bucket=os.environ.get("INPUT_BUCKET", "mras-document-classification-input-us-east-1"),
-            output_bucket=os.environ.get("OUTPUT_BUCKET", "mras-document-classification-output-us-east-1"),
-            region=os.environ.get("AWS_REGION", "us-east-1"),
+            input_bucket=os.environ.get("INPUT_BUCKET", f"mras-document-classification-input-{default_region}"),
+            output_bucket=os.environ.get("OUTPUT_BUCKET", f"mras-document-classification-output-{default_region}"),
+            region=os.environ.get("AWS_REGION", default_region),
             prefix=os.environ.get("S3_PREFIX", "documents/"),
             results_prefix=os.environ.get("S3_RESULTS_PREFIX", "classification-results/"),
         )
@@ -329,10 +359,12 @@ class ClassificationConfig:
     @classmethod
     def from_dict(cls, config_dict: dict[str, Any]) -> ClassificationConfig:
         """Create configuration from dictionary."""
+        default_region = get_default_aws_region()
+        
         bedrock_dict = config_dict.get("bedrock", {})
         bedrock_config = BedrockConfig(
             model_id=bedrock_dict.get("model_id", "us.amazon.nova-lite-v1:0"),
-            region=bedrock_dict.get("region", "us-east-1"),
+            region=bedrock_dict.get("region", default_region),
             max_tokens=bedrock_dict.get("max_tokens", 2048),
             temperature=bedrock_dict.get("temperature", 0.1),
             top_p=bedrock_dict.get("top_p", 0.9),
@@ -341,7 +373,7 @@ class ClassificationConfig:
 
         textract_dict = config_dict.get("textract", {})
         textract_config = TextractConfig(
-            region=textract_dict.get("region", "us-east-1"),
+            region=textract_dict.get("region", default_region),
             feature_types=textract_dict.get("feature_types", ["TABLES", "FORMS"]),
             queries=textract_dict.get("queries", []),
             adapters=textract_dict.get("adapters", []),
@@ -351,7 +383,7 @@ class ClassificationConfig:
         s3_config = S3Config(
             input_bucket=s3_dict.get("input_bucket"),
             output_bucket=s3_dict.get("output_bucket"),
-            region=s3_dict.get("region", "us-east-1"),
+            region=s3_dict.get("region", default_region),
             prefix=s3_dict.get("prefix", "documents/"),
             results_prefix=s3_dict.get("results_prefix", "classification-results/"),
         )
