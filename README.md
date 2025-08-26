@@ -4,11 +4,8 @@ A production-ready document classification system with **17 AI models** on AWS B
 
 ## 🚀 Quick Start
 
-# Insta## 🔄 Process Flow Diagram
-
-The following sequence diagrams show the complete document classification process:
-
-> **💡 Note**: These Mermaid diagrams will render automatically on GitHub, GitLab, and other platforms that support Mermaid. For local viewing, use a Markdown viewer with Mermaid support or the [Mermaid Live Editor](https://mermaid.live/).
+<!-- # Insta## 🔄 Process Flow Diagram
+The following sequence diagrams show the complete document classification process: -->
 
 ### Single Document Classification
 
@@ -253,6 +250,8 @@ The system integrates with the broader AWS Intelligent Document Processing (IDP)
 ## � Process Flow Diagram
 
 The following sequence diagram shows the complete document classification process:
+
+> **💡 Note**: These Mermaid diagrams will render automatically on GitHub, GitLab, and other platforms that support Mermaid. For local viewing, use a Markdown viewer with Mermaid support or the [Mermaid Live Editor](https://mermaid.live/).
 
 ```mermaid
 sequenceDiagram
