@@ -4,7 +4,6 @@ A production-ready document classification system with **17 AI models** on AWS B
 
 ## 🚀 Quick Start
 
-```bash
 # Insta## 🔄 Process Flow Diagram
 
 The following sequence diagrams show the complete document classification process:
@@ -13,7 +12,7 @@ The following sequence diagrams show the complete document classification proces
 
 ### Single Document Classification
 
-```mermaidpendencies
+```bash
 uv sync
 
 # Classify text with default model
